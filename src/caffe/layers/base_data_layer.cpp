@@ -41,11 +41,21 @@ void BaseDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     CHECK_GE(data_mean_.channels(), datum_channels_);
     CHECK_GE(data_mean_.height(), datum_height_);
     CHECK_GE(data_mean_.width(), datum_width_);
-  } else {
+    mean_ = data_mean_.cpu_data();
+ }
+  else if (transform_param_.mean_value_size() > 0) {
+    CHECK(transform_param_.has_mean_file() == false) <<
+      "Cannot specify mean_file and mean_value at the same time";
+    for (int c = 0; c < transform_param_.mean_value_size(); ++c) {
+      mean_values_.push_back(transform_param_.mean_value(c));
+      LOG(INFO) << "image mean loaded: " << mean_values_[c];
+    }
+  }  
+  else {
     // Simply initialize an all-empty mean.
     data_mean_.Reshape(1, datum_channels_, datum_height_, datum_width_);
   }
-  mean_ = data_mean_.cpu_data();
+  
   data_transformer_.InitRand();
 }
 

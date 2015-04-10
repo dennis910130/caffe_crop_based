@@ -35,6 +35,11 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
   if (param_.random_seed() >= 0) {
     Caffe::set_random_seed(param_.random_seed());
   }
+  // added for allowing bigger batch size
+  if (!param_.has_update_interval() || param_.update_interval() == 1)
+    Caffe::set_accumulate(false);
+  else
+    Caffe::set_accumulate(true);
   // Scaffolding code
   InitTrainNet();
   InitTestNets();
@@ -185,8 +190,23 @@ void Solver<Dtype>::Solve(const char* resume_file) {
     }
 
     const bool display = param_.display() && iter_ % param_.display() == 0;
-    net_->set_debug_info(display && param_.debug_info());
-    Dtype loss = net_->ForwardBackward(bottom_vec);
+    const bool debug_display = param_.debug_info() && iter_ % param_.debug_display() == 0;
+    net_->set_debug_info(debug_display);
+
+    // added for allowing bigger batch size
+    Dtype loss = 0;
+    if ( !Caffe::accumulate() )
+      loss = net_->ForwardBackward(bottom_vec);
+    else{
+      for (int acum_num = 0; acum_num < param_.update_interval() - 1; ++acum_num){
+        loss += net_->ForwardBackward(bottom_vec);
+        net_->AccumulateDiff();
+      }
+      loss += net_->ForwardBackward(bottom_vec);
+      net_->UpdateDiff();
+      loss /= Dtype(param_.update_interval());
+    }
+
     if (display) {
       LOG(INFO) << "Iteration " << iter_ << ", loss = " << loss;
       const vector<Blob<Dtype>*>& result = net_->output_blobs();
@@ -402,8 +422,10 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
   if (this->param_.display() && this->iter_ % this->param_.display() == 0) {
     LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate;
   }
+  rate /= Dtype(this->param_.update_interval());
   Dtype momentum = this->param_.momentum();
   Dtype weight_decay = this->param_.weight_decay();
+  weight_decay *= Dtype(this->param_.update_interval());
   string regularization_type = this->param_.regularization_type();
   switch (Caffe::mode()) {
   case Caffe::CPU:
@@ -515,8 +537,10 @@ void NesterovSolver<Dtype>::ComputeUpdateValue() {
   if (this->param_.display() && this->iter_ % this->param_.display() == 0) {
     LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate;
   }
+  rate /= Dtype(this->param_.update_interval());
   Dtype momentum = this->param_.momentum();
   Dtype weight_decay = this->param_.weight_decay();
+  weight_decay *= Dtype(this->param_.update_interval());
   string regularization_type = this->param_.regularization_type();
   switch (Caffe::mode()) {
   case Caffe::CPU:

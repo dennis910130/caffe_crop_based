@@ -140,6 +140,8 @@ message SolverParameter {
   // random number generator -- useful for reproducible results. Otherwise,
   // (and by default) initialize using a seed derived from the system clock.
   optional int64 random_seed = 20 [default = -1];
+  // added to allow big batch_size
+  optional int32 update_interval = 33 [default = 1];
 
   // Solver type
   enum SolverType {
@@ -154,6 +156,7 @@ message SolverParameter {
   // If true, print information about the state of the net that may help with
   // debugging learning problems.
   optional bool debug_info = 23 [default = false];
+  optional int32 debug_display = 40;
 
   // If false, don't save a snapshot after training finishes.
   optional bool snapshot_after_train = 28 [default = true];
@@ -198,7 +201,7 @@ message NetStateRule {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available ID: 41 (last added: contrastive_loss_param)
+// LayerParameter next available ID: 42 (last added: label_transform_param)
 message LayerParameter {
   repeated string bottom = 2; // the name of the bottom blobs
   repeated string top = 3; // the name of the top blobs
@@ -219,7 +222,7 @@ message LayerParameter {
   // line above the enum. Update the next available ID when you add a new
   // LayerType.
   //
-  // LayerType next available ID: 38 (last added: CONTRASTIVE_LOSS)
+  // LayerType next available ID: 44 (last added: COMPACT_DATA) 
   enum LayerType {
     // "NONE" layer type is 0th enum element so that we don't cause confusion
     // by defaulting to an existent LayerType (instead, should usually error if
@@ -229,6 +232,7 @@ message LayerParameter {
     ACCURACY = 1;
     ARGMAX = 30;
     BNLL = 2;
+    COMPACT_DATA = 43;
     CONCAT = 3;
     CONTRASTIVE_LOSS = 37;
     CONVOLUTION = 4;
@@ -245,6 +249,7 @@ message LayerParameter {
     IMAGE_DATA = 12;
     INFOGAIN_LOSS = 13;
     INNER_PRODUCT = 14;
+    LABEL_TRANSFORM = 38;
     LRN = 15;
     MEMORY_DATA = 29;
     MULTINOMIAL_LOGISTIC_LOSS = 16;
@@ -260,6 +265,10 @@ message LayerParameter {
     SPLIT = 22;
     SLICE = 33;
     TANH = 23;
+    TRANSFORM_SOFTMAX_LOSS = 39;
+    SOFTMAX_LOSS_TREE = 42;
+    ACCURACY_TREE = 41;
+    TRANSFORM_ACCURACY = 40;
     WINDOW_DATA = 24;
     THRESHOLD = 31;
   }
@@ -305,6 +314,8 @@ message LayerParameter {
   optional ImageDataParameter image_data_param = 15;
   optional InfogainLossParameter infogain_loss_param = 16;
   optional InnerProductParameter inner_product_param = 17;
+  optional LabelTransformParameter label_transform_param = 41;
+  optional TreeParameter tree_param = 42;
   optional LRNParameter lrn_param = 18;
   optional MemoryDataParameter memory_data_param = 22;
   optional MVNParameter mvn_param = 34;
@@ -344,6 +355,8 @@ message TransformationParameter {
   // Specify if we would like to randomly crop an image.
   optional uint32 crop_size = 3 [default = 0];
   optional string mean_file = 4;
+  optional bool multiscale = 5 [default = false];
+  repeated float mean_value = 6;
 }
 
 // Message that stores parameters used by AccuracyLayer
@@ -522,6 +535,9 @@ message ImageDataParameter {
   // DEPRECATED. See TransformationParameter. Specify if we want to randomly mirror
   // data.
   optional bool mirror = 6 [default = false];
+  optional bool crop_mode = 11 [default = false];
+  optional uint32 smaller_size = 12 [default = 0];
+  
 }
 
 // Message that stores parameters InfogainLossLayer
@@ -536,6 +552,18 @@ message InnerProductParameter {
   optional bool bias_term = 2 [default = true]; // whether to have bias terms
   optional FillerParameter weight_filler = 3; // The filler for the weight
   optional FillerParameter bias_filler = 4; // The filler for the bias
+}
+
+// Massage that stors paramters used by TransformSoftmaxWithLoss
+message LabelTransformParameter {
+  required string label_transform_file = 1;
+}
+
+// Massage that stors paramters used by TreeLayers
+message TreeParameter {
+  repeated float node_weight = 1;
+  required uint32 tree_depth = 2;
+  repeated string label_transform_file = 3;
 }
 
 // Message that stores parameters used by LRNLayer
